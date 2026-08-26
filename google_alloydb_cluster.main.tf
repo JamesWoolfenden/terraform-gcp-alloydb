@@ -22,14 +22,14 @@ resource "google_alloydb_cluster" "main" {
 
   automated_backup_policy {
     location      = var.location
-    backup_window = "1800s"
+    backup_window = var.backup_window
     enabled       = true
 
     weekly_schedule {
-      days_of_week = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+      days_of_week = var.backup_days_of_week
 
       start_times {
-        hours   = 2
+        hours   = var.backup_start_hour
         minutes = 0
         seconds = 0
         nanos   = 0
@@ -42,6 +42,19 @@ resource "google_alloydb_cluster" "main" {
 
     encryption_config {
       kms_key_name = var.kms_key_name
+    }
+  }
+
+  maintenance_update_policy {
+    maintenance_windows {
+      day = var.maintenance_day
+
+      start_time {
+        hours   = var.maintenance_hour
+        minutes = 0
+        seconds = 0
+        nanos   = 0
+      }
     }
   }
 

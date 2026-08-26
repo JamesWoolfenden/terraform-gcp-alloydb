@@ -4,7 +4,7 @@ module "alloydb" {
   source       = "../../"
   cluster_id   = "example-cluster"
   instance_id  = "example-primary"
-  location     = "europe-west2"
+  location     = local.region
   network      = "projects/${data.google_project.current.number}/global/networks/${google_compute_network.alloydb.name}"
   kms_key_name = google_kms_crypto_key.alloydb.id
 

@@ -11,8 +11,9 @@ resource "google_alloydb_instance" "primary" {
     enable_public_ip = false
   }
 
-  database_flags = {
+  database_flags = merge({
     "alloydb.enable_pgaudit"      = "on"
+    "pgaudit.log"                 = "ddl,role,write"
     "password.enforce_complexity" = "on"
-  }
+  }, var.database_flags)
 }

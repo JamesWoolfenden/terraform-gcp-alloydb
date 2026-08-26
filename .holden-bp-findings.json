@@ -1,0 +1,96 @@
+{
+  "scan_date": "2026-08-26T00:00:00Z",
+  "scan_path": ".",
+  "findings": [
+    {
+      "id": "HOLDEN_BP_001",
+      "status": "fixed",
+      "first_seen": "2026-08-26",
+      "last_seen": "2026-08-26",
+      "principle": "reliability",
+      "severity": "LOW",
+      "confidence": "high",
+      "title": "AlloyDB cluster has no maintenance_update_policy, so Google may restart it at any hour",
+      "file": "google_alloydb_cluster.main.tf",
+      "line": 1,
+      "resource": "google_alloydb_cluster.main",
+      "explanation": "With no maintenance_update_policy block, AlloyDB applies minor-version and infrastructure updates whenever Google schedules them, including peak business hours - each one drops connections and briefly restarts the instance. The module configures the backup schedule down to the second (02:00, 1800s window) but leaves the one window that actually causes downtime unconstrained. holden already enforces this same control for Cloud SQL (HLD_GCP_381), GKE (HLD_GCP_052), Composer (HLD_GCP_487) and RDS (HLD_AWS_257), but has no AlloyDB equivalent, so nothing flagged it.",
+      "remediation": "Add a maintenance_update_policy block to google_alloydb_cluster.main, ideally parameterised alongside the backup schedule (see HOLDEN_BP_003):\n\n  maintenance_update_policy {\n    maintenance_windows {\n      day = \"SUNDAY\"\n      start_time {\n        hours   = 3\n        minutes = 0\n        seconds = 0\n        nanos   = 0\n      }\n    }\n  }\n\nPick a window that does not collide with the 02:00 backup window.",
+      "fixable": true,
+      "fix": "  maintenance_update_policy {\n    maintenance_windows {\n      day = var.maintenance_day\n\n      start_time {\n        hours   = var.maintenance_hour\n        minutes = 0\n        seconds = 0\n        nanos   = 0\n      }\n    }\n  }"
+    },
+    {
+      "id": "HOLDEN_BP_002",
+      "status": "fixed",
+      "first_seen": "2026-08-26",
+      "last_seen": "2026-08-26",
+      "principle": "maintainability",
+      "severity": "LOW",
+      "confidence": "high",
+      "title": "database_flags is hard-coded, so consumers cannot tune or extend PostgreSQL flags",
+      "file": "google_alloydb_instance.primary.tf",
+      "line": 14,
+      "resource": "google_alloydb_instance.primary",
+      "explanation": "The flag map is a fixed literal with no variable behind it. A consumer who needs to raise max_connections, change work_mem, narrow pgaudit.log to just ddl, or set any other supported flag has no way to do so through the module interface - their only options are forking the module or managing the instance outside it. Every other operationally significant value here (cpu_count, retention, location) is a variable; this one is the outlier.",
+      "remediation": "Add a var.database_flags map (default {}) and merge it over the module's baseline so callers can extend and override:\n\n  database_flags = merge({\n    \"alloydb.enable_pgaudit\"      = \"on\"\n    \"pgaudit.log\"                 = \"ddl,role,write\"\n    \"password.enforce_complexity\" = \"on\"\n  }, var.database_flags)",
+      "fixable": true,
+      "fix": "  database_flags = merge({\n    \"alloydb.enable_pgaudit\"      = \"on\"\n    \"pgaudit.log\"                 = \"ddl,role,write\"\n    \"password.enforce_complexity\" = \"on\"\n  }, var.database_flags)"
+    },
+    {
+      "id": "HOLDEN_BP_003",
+      "status": "fixed",
+      "first_seen": "2026-08-26",
+      "last_seen": "2026-08-26",
+      "principle": "maintainability",
+      "severity": "LOW",
+      "confidence": "high",
+      "title": "Automated backup schedule is hard-coded - window, start time and days of week are all literals",
+      "file": "google_alloydb_cluster.main.tf",
+      "line": 23,
+      "resource": "google_alloydb_cluster.main",
+      "explanation": "automated_backup_policy fixes backup_window = \"1800s\", start_times at 02:00:00, and days_of_week to all seven days, with no variable behind any of them. 02:00 UTC is the middle of the working day in APAC and mid-evening in the Americas, so a consumer in either region cannot move backups out of their traffic peak. The module already parameterises what is retained (backup_retention_count, recovery_window_days) but not when it runs, which is the half that has operational impact.",
+      "remediation": "Expose the schedule as variables - var.backup_start_hour (default 2), var.backup_window (default \"1800s\"), var.backup_days_of_week (default all seven) - and reference them in automated_backup_policy, keeping the current literals as defaults so existing callers are unaffected.",
+      "fixable": true,
+      "fix": "  automated_backup_policy {\n    location      = var.location\n    backup_window = var.backup_window\n    enabled       = true\n\n    weekly_schedule {\n      days_of_week = var.backup_days_of_week\n\n      start_times {\n        hours   = var.backup_start_hour\n        minutes = 0\n        seconds = 0\n        nanos   = 0\n      }\n    }\n\n    quantity_based_retention {\n      count = var.backup_retention_count\n    }\n\n    encryption_config {\n      kms_key_name = var.kms_key_name\n    }\n  }"
+    },
+    {
+      "id": "HOLDEN_BP_004",
+      "status": "open",
+      "first_seen": "2026-08-26",
+      "last_seen": "2026-08-26",
+      "principle": "cost",
+      "severity": "LOW",
+      "confidence": "medium",
+      "title": "14 daily full backups retained alongside a 14-day continuous backup window covers the same period twice",
+      "file": "google_alloydb_cluster.main.tf",
+      "line": 14,
+      "resource": "google_alloydb_cluster.main",
+      "explanation": "The defaults set continuous_backup_config.recovery_window_days = 14 and quantity_based_retention.count = 14 with a daily schedule, so the module bills for two independent copies of the same fourteen days: continuous backup already provides point-in-time recovery to any second in that window, and the fourteen daily fulls recover to points already inside it. AlloyDB charges separately for backup storage and continuous-backup storage, so the overlap is real money on every cluster built from this module, scaling with database size. Confidence is medium because whether the redundancy is deliberate (some compliance regimes require discrete full backups) is an organisational call, not something the code states.",
+      "remediation": "Pick which mechanism covers which horizon rather than duplicating: either lower the default backup_retention_count to roughly 7 so the fulls extend past the continuous window rather than shadowing it, or lower the default recovery_window_days and keep the fourteen fulls. Whichever you choose, note the reasoning in the README so consumers understand the split.",
+      "fixable": false
+    },
+    {
+      "id": "HOLDEN_BP_005",
+      "status": "fixed",
+      "first_seen": "2026-08-26",
+      "last_seen": "2026-08-26",
+      "principle": "maintainability",
+      "severity": "INFO",
+      "confidence": "high",
+      "title": "Example repeats the literal region \"europe-west2\" across two resources with no local",
+      "file": "example/examplea/google_kms_key_ring.alloydb.tf",
+      "line": 3,
+      "resource": "google_kms_key_ring.alloydb",
+      "explanation": "The region appears as a literal in google_kms_key_ring.alloydb.location and again in module.alloydb.location, and the provider block declares no region at all. The two must agree - a CMEK key ring in a different region than the AlloyDB cluster fails at apply - but nothing in the code ties them together, so anyone adapting the example to another region has to find both sites and will get a confusing runtime error if they miss one.",
+      "remediation": "Add a locals block (or a variable) in example/examplea and reference it from both sites:\n\nlocals {\n  region = \"europe-west2\"\n}\n\nthen use location = local.region in google_kms_key_ring.alloydb and location = local.region in the module call.",
+      "fixable": true,
+      "fix": "locals {\n  region = \"europe-west2\"\n}"
+    }
+  ],
+  "suggested_policies": [
+    {
+      "rationale": "holden enforces a maintenance window for every other managed database and cluster service it covers - HLD_GCP_381 (Cloud SQL), HLD_GCP_052 (GKE), HLD_GCP_487 (Composer), HLD_AWS_257 (RDS/Aurora) - but google_alloydb_cluster has no equivalent. Coverage for that type is HLD_GCP_323/325/352/353/354, none of which touches maintenance. The check is a single not_null on a nested block path, unambiguous, and fires correctly on any Terraform declaring the type, so it is a straight deterministic gap rather than something needing context.",
+      "yaml": "id: HLD_GCP_528\nname: AlloyDB clusters should define a maintenance window\nprinciple: reliability\nseverity: LOW\nrationale: |\n  Without a maintenance_update_policy block, Google applies AlloyDB minor-version\n  and infrastructure updates whenever it schedules them, including during peak\n  business hours. Each update drops client connections and briefly restarts the\n  instance, so an unconstrained window turns routine maintenance into unplanned\n  downtime that operations teams cannot predict or plan around. Restricting\n  updates to a low-traffic window gives predictable control over when instance\n  changes occur, which matters for any cluster backing a user-facing application\n  under an SLA. HLD_GCP_381 enforces the equivalent control for Cloud SQL.\nremediation: |\n  Add a maintenance_update_policy block naming a low-traffic window:\n\n  ```hcl\n  resource \"google_alloydb_cluster\" \"example\" {\n    cluster_id = \"my-cluster\"\n    location   = \"europe-west2\"\n\n    maintenance_update_policy {\n      maintenance_windows {\n        day = \"SUNDAY\"\n\n        start_time {\n          hours   = 3\n          minutes = 0\n          seconds = 0\n          nanos   = 0\n        }\n      }\n    }\n  }\n  ```\n\n  Choose a day and hour when traffic is lowest, and keep the window clear of the\n  cluster's automated_backup_policy start time so the two do not overlap.\nresources:\n  google_alloydb_cluster:\n    path: maintenance_update_policy.maintenance_windows\n    not_null: true\n"
+    }
+  ]
+}

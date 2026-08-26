@@ -31,7 +31,7 @@ variable "location" {
 
 variable "network" {
   type        = string
-  description = "Self-link of the VPC network the cluster attaches to, e.g. projects/<project-number>/global/networks/<name>"
+  description = "Self-link of the VPC network the cluster attaches to, e.g. `projects/<project-number>/global/networks/<name>`"
 
   validation {
     condition     = can(regex("^projects/[^/]+/global/networks/[^/]+$", var.network))

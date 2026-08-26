@@ -76,7 +76,7 @@ No modules.
 | <a name="input_location"></a> [location](#input\_location) | Region of the AlloyDB cluster | `string` | `"europe-west2"` | no |
 | <a name="input_maintenance_day"></a> [maintenance\_day](#input\_maintenance\_day) | Day of the week on which Google may apply maintenance updates | `string` | `"SUNDAY"` | no |
 | <a name="input_maintenance_hour"></a> [maintenance\_hour](#input\_maintenance\_hour) | Hour of day (UTC) at which the maintenance window opens. Keep it clear of var.backup\_start\_hour | `number` | `3` | no |
-| <a name="input_network"></a> [network](#input\_network) | Self-link of the VPC network the cluster attaches to, e.g. projects/<project-number>/global/networks/<name> | `string` | n/a | yes |
+| <a name="input_network"></a> [network](#input\_network) | Self-link of the VPC network the cluster attaches to, e.g. `projects/<project-number>/global/networks/<name>` | `string` | n/a | yes |
 | <a name="input_recovery_window_days"></a> [recovery\_window\_days](#input\_recovery\_window\_days) | Continuous backup recovery window, in days | `number` | `14` | no |
 
 ## Outputs
@@ -109,60 +109,6 @@ Copyright © 2019-2026 [Jim Woolfenden](https://github.com/JamesWoolfenden)
 ## License
 
 See [LICENSE](LICENSE) for full details.
-
-<!-- BEGIN_TF_DOCS -->
-## Requirements
-
-No requirements.
-
-## Providers
-
-| Name | Version |
-| ---- | ------- |
-| <a name="provider_google"></a> [google](#provider\_google) | n/a |
-
-## Modules
-
-No modules.
-
-## Resources
-
-| Name | Type |
-| ---- | ---- |
-| [google_alloydb_backup.nightly](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/alloydb_backup) | resource |
-| [google_alloydb_cluster.main](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/alloydb_cluster) | resource |
-| [google_alloydb_instance.primary](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/alloydb_instance) | resource |
-
-## Inputs
-
-| Name | Description | Type | Default | Required |
-| ---- | ----------- | ---- | ------- | :------: |
-| <a name="input_backup_days_of_week"></a> [backup\_days\_of\_week](#input\_backup\_days\_of\_week) | Days of the week on which automated backups run | `list(string)` | <pre>[<br/>  "MONDAY",<br/>  "TUESDAY",<br/>  "WEDNESDAY",<br/>  "THURSDAY",<br/>  "FRIDAY",<br/>  "SATURDAY",<br/>  "SUNDAY"<br/>]</pre> | no |
-| <a name="input_backup_retention_count"></a> [backup\_retention\_count](#input\_backup\_retention\_count) | Number of automated backups to retain | `number` | `14` | no |
-| <a name="input_backup_start_hour"></a> [backup\_start\_hour](#input\_backup\_start\_hour) | Hour of day (UTC) at which the automated backup window opens | `number` | `2` | no |
-| <a name="input_backup_window"></a> [backup\_window](#input\_backup\_window) | Duration of the automated backup window, as a protobuf duration | `string` | `"1800s"` | no |
-| <a name="input_cluster_id"></a> [cluster\_id](#input\_cluster\_id) | Identifier of the AlloyDB cluster | `string` | n/a | yes |
-| <a name="input_cpu_count"></a> [cpu\_count](#input\_cpu\_count) | vCPU count of the primary instance | `number` | `2` | no |
-| <a name="input_database_flags"></a> [database\_flags](#input\_database\_flags) | Additional PostgreSQL database flags, merged over the module's baseline (pgaudit and password complexity). Keys given here win, except that pgAudit may not be turned off | `map(string)` | `{}` | no |
-| <a name="input_deletion_protection"></a> [deletion\_protection](#input\_deletion\_protection) | Whether the cluster is protected from deletion | `bool` | `true` | no |
-| <a name="input_instance_id"></a> [instance\_id](#input\_instance\_id) | Identifier of the AlloyDB primary instance | `string` | n/a | yes |
-| <a name="input_kms_key_name"></a> [kms\_key\_name](#input\_kms\_key\_name) | Resource name of the Cloud KMS key used to encrypt the cluster, its backups and its continuous backups (CMEK) | `string` | n/a | yes |
-| <a name="input_location"></a> [location](#input\_location) | Region of the AlloyDB cluster | `string` | `"europe-west2"` | no |
-| <a name="input_maintenance_day"></a> [maintenance\_day](#input\_maintenance\_day) | Day of the week on which Google may apply maintenance updates | `string` | `"SUNDAY"` | no |
-| <a name="input_maintenance_hour"></a> [maintenance\_hour](#input\_maintenance\_hour) | Hour of day (UTC) at which the maintenance window opens. Keep it clear of var.backup\_start\_hour | `number` | `3` | no |
-| <a name="input_network"></a> [network](#input\_network) | Self-link of the VPC network the cluster attaches to, e.g. projects/<project-number>/global/networks/<name> | `string` | n/a | yes |
-| <a name="input_recovery_window_days"></a> [recovery\_window\_days](#input\_recovery\_window\_days) | Continuous backup recovery window, in days | `number` | `14` | no |
-
-## Outputs
-
-| Name | Description |
-| ---- | ----------- |
-| <a name="output_backup_id"></a> [backup\_id](#output\_backup\_id) | ID of the on-demand AlloyDB backup |
-| <a name="output_cluster_id"></a> [cluster\_id](#output\_cluster\_id) | ID of the AlloyDB cluster |
-| <a name="output_cluster_name"></a> [cluster\_name](#output\_cluster\_name) | Name of the AlloyDB cluster |
-| <a name="output_instance_id"></a> [instance\_id](#output\_instance\_id) | ID of the AlloyDB primary instance |
-| <a name="output_instance_ip_address"></a> [instance\_ip\_address](#output\_instance\_ip\_address) | Private IP address of the AlloyDB primary instance |
-<!-- END_TF_DOCS -->
 
 
 <!-- BEGINNING OF PRE-COMMIT-PIKE DOCS HOOK -->
